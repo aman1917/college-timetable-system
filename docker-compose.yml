@@ -1,0 +1,24 @@
+# Postgres for local development.
+#   docker compose up -d
+# Then point DATABASE_URL at it (the .env.example default already matches).
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: het-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: het
+      POSTGRES_PASSWORD: het123
+      POSTGRES_DB: college
+    ports:
+      - '5433:5432'
+    volumes:
+      - het_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U het -d college -h localhost -p 5432']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  het_pgdata:

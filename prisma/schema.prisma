@@ -1,0 +1,346 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String     @id @default(cuid())
+  email        String     @unique
+  passwordHash String
+  name         String
+  role         Role       @default(TEACHER)
+  isActive     Boolean    @default(true)
+  lastLoginAt  DateTime?
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+  teacherId    String?    @unique
+  auditLogs    AuditLog[]
+  teacher      Teacher?   @relation(fields: [teacherId], references: [id])
+
+  @@index([role])
+  @@map("users")
+}
+
+model Department {
+  id        String    @id @default(cuid())
+  name      String    @unique
+  code      String    @unique
+  createdAt DateTime  @default(now())
+  teachers  Teacher[]
+
+  @@map("departments")
+}
+
+model Teacher {
+  id                String                @id @default(cuid())
+  teacherCode       String                @unique
+  name              String
+  email             String?               @unique
+  mobile            String?
+  designation       String?
+  qualification     String?
+  employmentType    EmploymentType        @default(FULL_TIME)
+  joiningDate       DateTime?
+  status            RecordStatus          @default(ACTIVE)
+  maxWeeklyLectures Int                   @default(20)
+  maxDailyLectures  Int                   @default(5)
+  notes             String?
+  createdAt         DateTime              @default(now())
+  updatedAt         DateTime              @updatedAt
+  departmentId      String?
+  allocations       SubjectAllocation[]
+  availability      TeacherAvailability[]
+  department        Department?           @relation(fields: [departmentId], references: [id])
+  user              User?
+
+  @@index([employmentType])
+  @@index([status])
+  @@map("teachers")
+}
+
+/// One row per weekday a teacher can work, with the window they are free.
+/// Part-time staff are never scheduled outside these rows.
+model TeacherAvailability {
+  id        String  @id @default(cuid())
+  teacherId String
+  day       Weekday
+  startTime String
+  endTime   String
+  teacher   Teacher @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+
+  @@unique([teacherId, day])
+  @@index([teacherId])
+  @@map("teacher_availability")
+}
+
+model Stream {
+  id            String        @id @default(cuid())
+  name          String        @unique
+  code          String        @unique
+  yearStructure YearStructure @default(UG_THREE_YEAR)
+  displayOrder  Int           @default(0)
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+  classes       Class[]
+  subjects      Subject[]
+
+  @@map("streams")
+}
+
+model AcademicYear {
+  id        String    @id @default(cuid())
+  label     String    @unique
+  startDate DateTime?
+  endDate   DateTime?
+  isActive  Boolean   @default(false)
+  createdAt DateTime  @default(now())
+  classes   Class[]
+
+  @@map("academic_years")
+}
+
+/// A concrete teaching group: Stream + Year + Semester + Division.
+model Class {
+  id             String              @id @default(cuid())
+  year           String
+  semester       Int
+  division       String
+  strength       Int?
+  streamId       String
+  academicYearId String
+  createdAt      DateTime            @default(now())
+  updatedAt      DateTime            @updatedAt
+  academicYear   AcademicYear        @relation(fields: [academicYearId], references: [id])
+  stream         Stream              @relation(fields: [streamId], references: [id])
+  allocations    SubjectAllocation[]
+
+  @@unique([streamId, academicYearId, year, semester, division])
+  @@index([streamId])
+  @@map("classes")
+}
+
+model Subject {
+  id              String              @id @default(cuid())
+  code            String              @unique
+  name            String
+  year            String
+  semester        Int
+  type            SubjectType         @default(THEORY)
+  credits         Int                 @default(3)
+  weeklyLectures  Int                 @default(3)
+  durationMinutes Int                 @default(50)
+  roomType        RoomType?
+  color           String              @default("#6366f1")
+  status          RecordStatus        @default(ACTIVE)
+  streamId        String
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
+  allocations     SubjectAllocation[]
+  stream          Stream              @relation(fields: [streamId], references: [id])
+  syllabus        Syllabus?
+
+  @@index([streamId, year, semester])
+  @@index([status])
+  @@map("subjects")
+}
+
+model Syllabus {
+  id                String   @id @default(cuid())
+  subjectId         String   @unique
+  unit1             String?
+  unit2             String?
+  unit3             String?
+  unit4             String?
+  unit5             String?
+  /// Lectures the syllabus implies; used to sanity-check Subject.weeklyLectures.
+  estimatedLectures Int?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  subject           Subject  @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+
+  @@map("syllabus")
+}
+
+model Room {
+  id          String              @id @default(cuid())
+  name        String              @unique
+  type        RoomType            @default(CLASSROOM)
+  capacity    Int                 @default(60)
+  building    String?
+  status      RecordStatus        @default(ACTIVE)
+  createdAt   DateTime            @default(now())
+  updatedAt   DateTime            @updatedAt
+  allocations SubjectAllocation[]
+
+  @@map("rooms")
+}
+
+model TimeSlot {
+  id           String           @id @default(cuid())
+  startTime    String
+  endTime      String
+  type         SlotType         @default(LECTURE)
+  isActive     Boolean          @default(true)
+  displayOrder Int              @default(0)
+  entries      TimetableEntry[]
+
+  @@unique([startTime, endTime])
+  @@index([displayOrder])
+  @@map("time_slots")
+}
+
+/// "Teacher T teaches Subject S to Class C, N times a week, in Room R."
+/// Nothing reaches the timetable without one of these.
+model SubjectAllocation {
+  id              String           @id @default(cuid())
+  weeklyLectures  Int
+  durationMinutes Int              @default(50)
+  status          RecordStatus     @default(ACTIVE)
+  teacherId       String
+  subjectId       String
+  classId         String
+  roomId          String?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  class           Class            @relation(fields: [classId], references: [id])
+  room            Room?            @relation(fields: [roomId], references: [id])
+  subject         Subject          @relation(fields: [subjectId], references: [id])
+  teacher         Teacher          @relation(fields: [teacherId], references: [id])
+  entries         TimetableEntry[]
+
+  @@unique([subjectId, classId])
+  @@index([teacherId])
+  @@index([classId])
+  @@map("subject_allocations")
+}
+
+/// One period on the grid. A multi-period lecture (e.g. a 100-minute practical
+/// across two 50-minute slots) is several rows sharing one groupId, so it moves
+/// and validates as a single unit.
+model TimetableEntry {
+  id           String            @id @default(cuid())
+  groupId      String
+  day          Weekday
+  allocationId String
+  timeSlotId   String
+  versionId    String?
+  createdAt    DateTime          @default(now())
+  updatedAt    DateTime          @updatedAt
+  allocation   SubjectAllocation @relation(fields: [allocationId], references: [id], onDelete: Cascade)
+  timeSlot     TimeSlot          @relation(fields: [timeSlotId], references: [id])
+  version      TimetableVersion? @relation(fields: [versionId], references: [id])
+
+  @@unique([day, timeSlotId, allocationId])
+  @@index([groupId])
+  @@index([day, timeSlotId])
+  @@map("timetable_entries")
+}
+
+model TimetableVersion {
+  id          String           @id @default(cuid())
+  label       String
+  status      TimetableStatus  @default(DRAFT)
+  publishedAt DateTime?
+  publishedBy String?
+  notes       String?
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+  entries     TimetableEntry[]
+
+  @@map("timetable_versions")
+}
+
+/// Single-row table (id = "singleton") holding college-wide configuration.
+model AppSetting {
+  id              String          @id @default("singleton")
+  collegeName     String          @default("My College")
+  defaultDuration Int             @default(50)
+  workingDays     Weekday[]       @default([MON, TUE, WED, THU, FRI, SAT])
+  fullTimeStart   String          @default("09:00")
+  fullTimeEnd     String          @default("17:00")
+  timetableStatus TimetableStatus @default(DRAFT)
+  publishedAt     DateTime?
+  publishedBy     String?
+  updatedAt       DateTime        @updatedAt
+
+  @@map("app_settings")
+}
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  action    String
+  entity    String
+  entityId  String?
+  summary   String
+  before    Json?
+  after     Json?
+  at        DateTime @default(now())
+  userId    String?
+  userLabel String   @default("system")
+  user      User?    @relation(fields: [userId], references: [id])
+
+  @@index([at])
+  @@index([entity, entityId])
+  @@map("audit_logs")
+}
+
+enum Role {
+  ADMIN
+  TEACHER
+}
+
+enum YearStructure {
+  UG_THREE_YEAR
+  LLB_FIVE_YEAR
+}
+
+enum EmploymentType {
+  FULL_TIME
+  PART_TIME
+}
+
+enum RecordStatus {
+  ACTIVE
+  INACTIVE
+}
+
+enum SubjectType {
+  THEORY
+  PRACTICAL
+  TUTORIAL
+  ELECTIVE
+  SPECIAL
+}
+
+enum RoomType {
+  CLASSROOM
+  LAB
+  SEMINAR
+}
+
+enum SlotType {
+  LECTURE
+  BREAK
+  LUNCH
+}
+
+enum Weekday {
+  MON
+  TUE
+  WED
+  THU
+  FRI
+  SAT
+  SUN
+}
+
+enum TimetableStatus {
+  DRAFT
+  REVIEW
+  PUBLISHED
+  ARCHIVED
+}
