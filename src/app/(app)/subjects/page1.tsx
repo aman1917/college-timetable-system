@@ -37,11 +37,7 @@ export default function SubjectsPage() {
           { header: 'Code', render: (r) => <b>{r.code}</b>, search: (r) => r.code },
           { header: 'Subject', render: (r) => r.name, search: (r) => r.name },
           { header: 'Stream', render: (r) => r.stream?.name ?? '—', search: (r) => r.stream?.name ?? '' },
-          {
-            header: 'Year',
-            render: (r) => `${r.year} · ${r.semester === 1 ? 'Odd' : 'Even'} Sem`,
-            search: (r) => r.year,
-          },
+          { header: 'Year', render: (r) => `${r.year} · Sem ${r.semester}`, search: (r) => r.year },
           { header: 'Type', render: (r) => r.type, search: (r) => r.type },
           {
             header: 'Weekly',
@@ -67,13 +63,7 @@ export default function SubjectsPage() {
               key: 'year', label: 'Year', type: 'select', required: true,
               options: yearOptions.map((y) => ({ value: y, label: y })),
             },
-            {
-              key: 'semester', label: 'Semester', type: 'select', required: true,
-              options: [
-                { value: 1, label: 'Odd Semester' },
-                { value: 2, label: 'Even Semester' },
-              ],
-            },
+            { key: 'semester', label: 'Semester', type: 'number', required: true },
             {
               key: 'type', label: 'Subject Type', type: 'select', required: true,
               options: [

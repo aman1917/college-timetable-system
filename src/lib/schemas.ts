@@ -37,7 +37,9 @@ export const classSchema = z.object({
   streamId: z.string().min(1, 'Choose a stream.'),
   academicYearId: z.string().min(1, 'Choose an academic year.'),
   year: z.string().min(1, 'Choose a year.'),
-  semester: z.coerce.number().int().min(1).max(10),
+  semester: z.coerce.number().int().refine((v) => v === 1 || v === 2, {
+    message: 'Semester must be Odd (1) or Even (2).',
+  }),
   division: z.string().min(1, 'Division is required.').max(5),
   strength: z.coerce.number().int().min(0).max(500).optional().nullable(),
 });
@@ -79,7 +81,9 @@ export const subjectSchema = z.object({
   name: z.string().min(1, 'Subject name is required.').max(160),
   streamId: z.string().min(1, 'Choose a stream.'),
   year: z.string().min(1, 'Choose a year.'),
-  semester: z.coerce.number().int().min(1).max(10),
+  semester: z.coerce.number().int().refine((v) => v === 1 || v === 2, {
+    message: 'Semester must be Odd (1) or Even (2).',
+  }),
   type: z.enum(['THEORY', 'PRACTICAL', 'TUTORIAL', 'ELECTIVE', 'SPECIAL']).default('THEORY'),
   credits: z.coerce.number().int().min(0).max(20).default(3),
   weeklyLectures: z.coerce.number().int().min(1, 'At least one lecture per week.').max(20).default(3),
