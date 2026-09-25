@@ -151,11 +151,8 @@ export async function POST(request: Request) {
     /*
      * 5. Find existing allocations for these classes
      *
-     * IMPORTANT:
-     * We DO NOT reject existing allocations.
-     *
-     * Existing allocations will be converted into
-     * Common Group allocations.
+     * Existing allocations are converted into Common Group
+     * allocations instead of creating duplicate allocations.
      */
     const existingAllocations =
       await prisma.subjectAllocation.findMany({
@@ -211,7 +208,7 @@ export async function POST(request: Request) {
       });
 
       /*
-       * Existing allocations
+       * Existing allocation class IDs
        */
       const existingClassIds = new Set(
         existingAllocations.map(
