@@ -83,6 +83,16 @@ export interface EngineAllocation {
   weeklyLectures: number;
   durationMinutes: number;
   status: RecordStatus;
+
+  /**
+   * Common Group support.
+   *
+   * When multiple allocations have the same commonGroupId,
+   * they represent ONE real lecture that must be scheduled
+   * at exactly the same day and time.
+   */
+  commonGroupId: string | null;
+  isCommon: boolean;
 }
 
 export interface EngineEntry {
@@ -119,16 +129,24 @@ export interface ContextInput {
 export function buildContext(input: ContextInput): EngineContext {
   const index = <T extends { id: string }>(rows: T[]) => {
     const m = new Map<string, T>();
-    for (const r of rows) m.set(r.id, r);
+
+    for (const r of rows) {
+      m.set(r.id, r);
+    }
+
     return m;
   };
+
   return {
     workingDays: input.workingDays,
-    // Slots are kept in chronological order everywhere downstream; sorting once
-    // here means no other function has to remember to do it.
+
+    // Slots are kept in chronological order everywhere downstream.
     slots: [...input.slots].sort(
-      (a, b) => a.displayOrder - b.displayOrder || timeToMinutes(a.startTime) - timeToMinutes(b.startTime),
+      (a, b) =>
+        a.displayOrder - b.displayOrder ||
+        timeToMinutes(a.startTime) - timeToMinutes(b.startTime),
     ),
+
     entries: input.entries,
     allocations: index(input.allocations),
     teachers: index(input.teachers),
@@ -143,19 +161,28 @@ export function buildContext(input: ContextInput): EngineContext {
 /** "09:30" → 570. Returns 0 for malformed input rather than NaN. */
 export function timeToMinutes(hhmm: string): number {
   if (!hhmm) return 0;
+
   const parts = hhmm.split(':');
   const h = Number(parts[0]);
   const m = Number(parts[1] ?? 0);
-  if (!Number.isFinite(h) || !Number.isFinite(m)) return 0;
+
+  if (!Number.isFinite(h) || !Number.isFinite(m)) {
+    return 0;
+  }
+
   return h * 60 + m;
 }
 
 export function minutesToTime(total: number): string {
   const h = Math.floor(total / 60) % 24;
   const m = total % 60;
+
   return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
 }
 
 export function slotDurationMinutes(slot: EngineSlot): number {
-  return Math.max(1, timeToMinutes(slot.endTime) - timeToMinutes(slot.startTime));
+  return Math.max(
+    1,
+    timeToMinutes(slot.endTime) - timeToMinutes(slot.startTime),
+  );
 }

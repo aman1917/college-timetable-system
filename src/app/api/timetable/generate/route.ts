@@ -18,6 +18,18 @@ export async function POST(request: Request) {
     const ctx = await loadContext();
     const result = generateTimetable(ctx, seed ?? Date.now() % 2_147_483_647);
 
+    // console.log(
+    //   'COMMON GROUP ALLOCATIONS:',
+    //   [...ctx.allocations.values()]
+    //     .filter((a) => a.isCommon)
+    //     .map((a) => ({
+    //       id: a.id,
+    //       classId: a.classId,
+    //       commonGroupId: a.commonGroupId,
+    //       isCommon: a.isCommon,
+    //     })),
+    // );
+
     // The engine already guarantees this, but generation writes in bulk, so we
     // verify the whole grid before committing rather than trusting the loop.
     const conflicts = findExistingConflicts(ctx);
@@ -43,9 +55,9 @@ export async function POST(request: Request) {
       summary: `Auto-generated ${result.placedGroups} lecture block(s)${result.repairedGroups ? `, ${result.repairedGroups} via backtracking` : ''}${result.complete ? '' : `; ${result.shortfalls.length} allocation(s) short`}`,
       after: { placedGroups: result.placedGroups, shortfalls: result.shortfalls.length },
     });
-
     return ok(result);
   } catch (error) {
+    console.error('AUTO GENERATE ERROR:', error);
     return handleError(error);
   }
 }

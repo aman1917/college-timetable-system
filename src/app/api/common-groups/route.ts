@@ -69,11 +69,10 @@ export async function POST(request: Request) {
     await requireAdmin();
 
     const body = await request.json();
-
     const input = commonGroupSchema.parse(body);
 
     /*
-     * Check whether the Common Group code already exists.
+     * 1. Check Common Group code
      */
     const existingGroup = await prisma.commonGroup.findUnique({
       where: {
@@ -91,7 +90,7 @@ export async function POST(request: Request) {
     }
 
     /*
-     * Verify all selected classes exist.
+     * 2. Verify all selected classes exist
      */
     const classes = await prisma.class.findMany({
       where: {
@@ -114,7 +113,7 @@ export async function POST(request: Request) {
     }
 
     /*
-     * Check whether the subject exists.
+     * 3. Verify subject
      */
     const subject = await prisma.subject.findUnique({
       where: {
@@ -132,7 +131,7 @@ export async function POST(request: Request) {
     }
 
     /*
-     * Check whether the teacher exists.
+     * 4. Verify teacher
      */
     const teacher = await prisma.teacher.findUnique({
       where: {
@@ -150,8 +149,13 @@ export async function POST(request: Request) {
     }
 
     /*
-     * Check whether one of these classes already
-     * has an allocation for this subject.
+     * 5. Find existing allocations for these classes
+     *
+     * IMPORTANT:
+     * We DO NOT reject existing allocations.
+     *
+     * Existing allocations will be converted into
+     * Common Group allocations.
      */
     const existingAllocations =
       await prisma.subjectAllocation.findMany({
@@ -164,15 +168,27 @@ export async function POST(request: Request) {
         select: {
           id: true,
           classId: true,
+          commonGroupId: true,
+          isCommon: true,
         },
       });
 
-    if (existingAllocations.length > 0) {
+    /*
+     * 6. Make sure an existing allocation is not already
+     * attached to another Common Group.
+     */
+    const alreadyInAnotherGroup = existingAllocations.filter(
+      (allocation) =>
+        allocation.commonGroupId &&
+        allocation.commonGroupId !== null,
+    );
+
+    if (alreadyInAnotherGroup.length > 0) {
       return ok(
         {
           error:
-            'One or more selected classes already have an allocation for this subject.',
-          classIds: existingAllocations.map(
+            'One or more selected classes are already part of another Common Group.',
+          classIds: alreadyInAnotherGroup.map(
             (allocation) => allocation.classId,
           ),
         },
@@ -181,15 +197,12 @@ export async function POST(request: Request) {
     }
 
     /*
-     * Create:
-     *
-     * CommonGroup
-     *      ↓
-     * multiple SubjectAllocations
-     *
-     * All allocations share the same commonGroupId.
+     * 7. Create Common Group and attach allocations
      */
     const group = await prisma.$transaction(async (tx) => {
+      /*
+       * Create Common Group
+       */
       const createdGroup = await tx.commonGroup.create({
         data: {
           name: input.name,
@@ -197,26 +210,75 @@ export async function POST(request: Request) {
         },
       });
 
-      await tx.subjectAllocation.createMany({
-        data: input.classIds.map((classId) => ({
-          teacherId: input.teacherId,
-          subjectId: input.subjectId,
-          classId,
+      /*
+       * Existing allocations
+       */
+      const existingClassIds = new Set(
+        existingAllocations.map(
+          (allocation) => allocation.classId,
+        ),
+      );
 
-          roomId: input.roomId
-            ? input.roomId
-            : null,
+      /*
+       * 8. Convert existing allocations into
+       * Common Group allocations.
+       */
+      if (existingAllocations.length > 0) {
+        await tx.subjectAllocation.updateMany({
+          where: {
+            id: {
+              in: existingAllocations.map(
+                (allocation) => allocation.id,
+              ),
+            },
+          },
+          data: {
+            teacherId: input.teacherId,
+            roomId: input.roomId
+              ? input.roomId
+              : null,
+            weeklyLectures: input.weeklyLectures,
+            durationMinutes: input.durationMinutes,
+            status: 'ACTIVE',
+            commonGroupId: createdGroup.id,
+            isCommon: true,
+          },
+        });
+      }
 
-          weeklyLectures: input.weeklyLectures,
-          durationMinutes: input.durationMinutes,
+      /*
+       * 9. Create allocations only for classes
+       * that did NOT already have one.
+       */
+      const missingClassIds = input.classIds.filter(
+        (classId) => !existingClassIds.has(classId),
+      );
 
-          status: 'ACTIVE',
+      if (missingClassIds.length > 0) {
+        await tx.subjectAllocation.createMany({
+          data: missingClassIds.map((classId) => ({
+            teacherId: input.teacherId,
+            subjectId: input.subjectId,
+            classId,
 
-          commonGroupId: createdGroup.id,
-          isCommon: true,
-        })),
-      });
+            roomId: input.roomId
+              ? input.roomId
+              : null,
 
+            weeklyLectures: input.weeklyLectures,
+            durationMinutes: input.durationMinutes,
+
+            status: 'ACTIVE',
+
+            commonGroupId: createdGroup.id,
+            isCommon: true,
+          })),
+        });
+      }
+
+      /*
+       * 10. Return complete Common Group
+       */
       return tx.commonGroup.findUnique({
         where: {
           id: createdGroup.id,
