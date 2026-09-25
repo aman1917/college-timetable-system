@@ -103,14 +103,42 @@ export const syllabusSchema = z.object({
   estimatedLectures: z.coerce.number().int().min(0).max(200).optional().nullable(),
 });
 
+// export const allocationSchema = z.object({
+//   teacherId: z.string().min(1, 'Choose a teacher.'),
+//   subjectId: z.string().min(1, 'Choose a subject.'),
+//   classId: z.string().min(1, 'Choose a class.'),
+//   roomId: z.string().optional().nullable(),
+//   weeklyLectures: z.coerce.number().int().min(1, 'At least one lecture per week.').max(20),
+//   durationMinutes: z.coerce.number().int().min(20).max(300).default(50),
+//   status: recordStatusEnum.default('ACTIVE'),
+// });
 export const allocationSchema = z.object({
   teacherId: z.string().min(1, 'Choose a teacher.'),
   subjectId: z.string().min(1, 'Choose a subject.'),
   classId: z.string().min(1, 'Choose a class.'),
+
   roomId: z.string().optional().nullable(),
-  weeklyLectures: z.coerce.number().int().min(1, 'At least one lecture per week.').max(20),
-  durationMinutes: z.coerce.number().int().min(20).max(300).default(50),
+
+  weeklyLectures: z.coerce
+    .number()
+    .int()
+    .min(1, 'At least one lecture per week.')
+    .max(20),
+
+  durationMinutes: z.coerce
+    .number()
+    .int()
+    .min(20)
+    .max(300)
+    .default(50),
+
   status: recordStatusEnum.default('ACTIVE'),
+
+  // Common teaching
+  commonGroupId: z.string().optional().nullable(),
+
+  // true when this allocation belongs to a common lecture group
+  isCommon: z.coerce.boolean().default(false),
 });
 
 export const roomSchema = z.object({

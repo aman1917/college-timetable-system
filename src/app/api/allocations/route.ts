@@ -10,28 +10,73 @@ export const allocationConfig = {
   label: 'Subject Allocation',
   schema: allocationSchema,
   allowTeacherRead: true,
+
   findManyArgs: {
     include: {
       teacher: true,
       subject: true,
       room: true,
-      class: { include: { stream: true, academicYear: true } },
-      entries: { select: { groupId: true } },
+
+      class: {
+        include: {
+          stream: true,
+          academicYear: true,
+        },
+      },
+
+      commonGroup: true,
+
+      entries: {
+        select: {
+          groupId: true,
+        },
+      },
     },
-    orderBy: { createdAt: 'desc' as const },
+
+    orderBy: {
+      createdAt: 'desc' as const,
+    },
   },
+
   describe: (_r: unknown, i: AllocationInput) =>
-    `${i.subjectId} → ${i.teacherId} for ${i.classId} (${i.weeklyLectures}/week)`,
+    `${i.subjectId} → ${i.teacherId} for ${i.classId} (${i.weeklyLectures}/week)${
+      i.isCommon && i.commonGroupId
+        ? ` [Common Group: ${i.commonGroupId}]`
+        : ''
+    }`,
+
   toCreateData: (input: AllocationInput) => ({
-    ...input,
+    teacherId: input.teacherId,
+    subjectId: input.subjectId,
+    classId: input.classId,
+
     roomId: input.roomId ? input.roomId : null,
+
+    weeklyLectures: input.weeklyLectures,
+    durationMinutes: input.durationMinutes,
+    status: input.status,
+
+    // Common teaching
+    commonGroupId: input.commonGroupId
+      ? input.commonGroupId
+      : null,
+
+    isCommon: input.isCommon ?? false,
   }),
-  // Deleting an allocation would cascade its timetable entries away silently.
-  // Refusing keeps the timetable and the master data honest with each other.
+
   guardDelete: (id: string) =>
     refuseIfReferenced([
-      { count: () => prisma.timetableEntry.count({ where: { allocationId: id } }), noun: 'scheduled lecture' },
+      {
+        count: () =>
+          prisma.timetableEntry.count({
+            where: {
+              allocationId: id,
+            },
+          }),
+        noun: 'scheduled lecture',
+      },
     ]),
 };
 
-export const { GET, POST } = createCollectionHandlers(allocationConfig);
+export const { GET, POST } =
+  createCollectionHandlers(allocationConfig);

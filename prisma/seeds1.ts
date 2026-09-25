@@ -438,46 +438,9 @@ async function main() {
 
   function roomFor(classKey: string, subjectName: string): string {
     const practical = /PRACT|LAB/i.test(subjectName);
-
-    // Science practicals use their dedicated laboratories.
-    if (
-      practical &&
-      (classKey.includes('BSC-SY-ZOO') || classKey.includes('BSC-TY-ZOO'))
-    ) {
-      return 'Zoology Lab';
-    }
-
-    if (
-      practical &&
-      (classKey.includes('BSC-SY-Chemistry') ||
-        classKey.includes('BSC-TY-Chemistry'))
-    ) {
-      return 'Chemistry Lab';
-    }
-
-    // Computer practicals are assigned according to LAB 1 / LAB 2
-    // in the subject name. This allows both computer labs to be used.
-    if (practical) {
-      if (/LAB\s*2/i.test(subjectName)) {
-        return 'Computer Lab 2';
-      }
-
-      if (/LAB\s*1/i.test(subjectName)) {
-        return 'Computer Lab 1';
-      }
-
-      // Existing practical subjects without an explicit lab number
-      // continue to use Computer Lab 1.
-      if (
-        classKey.startsWith('BSCIT-') ||
-        classKey.startsWith('BSCCS-') ||
-        classKey.startsWith('BCOM-') ||
-        classKey.startsWith('BCOMMS-')
-      ) {
-        return 'Computer Lab 1';
-      }
-    }
-
+    if (practical && (classKey.includes('BSC-SY-ZOO') || classKey.includes('BSC-TY-ZOO'))) return 'Zoology Lab';
+    if (practical && (classKey.includes('BSC-SY-Chemistry') || classKey.includes('BSC-TY-Chemistry'))) return 'Chemistry Lab';
+    if (practical && (classKey.startsWith('BSCIT-') || classKey.startsWith('BSCCS-') || classKey.startsWith('BCOM-') || classKey.startsWith('BCOMMS-'))) return 'Computer Lab 1';
     return classRoomMap[classKey] ?? 'Seminar Hall';
   }
 

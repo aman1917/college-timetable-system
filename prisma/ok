@@ -62,6 +62,8 @@ model Teacher {
   @@map("teachers")
 }
 
+/// One row per weekday a teacher can work, with the window they are free.
+/// Part-time staff are never scheduled outside these rows.
 model TeacherAvailability {
   id        String  @id @default(cuid())
   teacherId String
@@ -101,6 +103,7 @@ model AcademicYear {
   @@map("academic_years")
 }
 
+/// A concrete teaching group: Stream + Year + Semester + Division.
 model Class {
   id             String              @id @default(cuid())
   year           String
@@ -154,6 +157,7 @@ model Syllabus {
   unit3             String?
   unit4             String?
   unit5             String?
+  /// Lectures the syllabus implies; used to sanity-check Subject.weeklyLectures.
   estimatedLectures Int?
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
@@ -190,62 +194,46 @@ model TimeSlot {
   @@map("time_slots")
 }
 
-model CommonGroup {
-  id          String              @id @default(cuid())
-  name        String
-  code        String              @unique
-  allocations SubjectAllocation[]
-  createdAt   DateTime            @default(now())
-  updatedAt   DateTime            @updatedAt
-
-  @@map("common_groups")
-}
-
+/// "Teacher T teaches Subject S to Class C, N times a week, in Room R."
+/// Nothing reaches the timetable without one of these.
 model SubjectAllocation {
-  id              String       @id @default(cuid())
+  id              String           @id @default(cuid())
   weeklyLectures  Int
-  durationMinutes Int          @default(50)
-  status          RecordStatus @default(ACTIVE)
+  durationMinutes Int              @default(50)
+  status          RecordStatus     @default(ACTIVE)
   teacherId       String
   subjectId       String
   classId         String
   roomId          String?
-
-  commonGroupId String?
-  isCommon      Boolean @default(false)
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  class   Class   @relation(fields: [classId], references: [id])
-  room    Room?   @relation(fields: [roomId], references: [id])
-  subject Subject @relation(fields: [subjectId], references: [id])
-  teacher Teacher @relation(fields: [teacherId], references: [id])
-
-  commonGroup CommonGroup? @relation(fields: [commonGroupId], references: [id], onDelete: SetNull)
-
-  entries TimetableEntry[]
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  class           Class            @relation(fields: [classId], references: [id])
+  room            Room?            @relation(fields: [roomId], references: [id])
+  subject         Subject          @relation(fields: [subjectId], references: [id])
+  teacher         Teacher          @relation(fields: [teacherId], references: [id])
+  entries         TimetableEntry[]
 
   @@unique([subjectId, classId])
   @@index([teacherId])
   @@index([classId])
-  @@index([commonGroupId])
   @@map("subject_allocations")
 }
 
+/// One period on the grid. A multi-period lecture (e.g. a 100-minute practical
+/// across two 50-minute slots) is several rows sharing one groupId, so it moves
+/// and validates as a single unit.
 model TimetableEntry {
-  id           String   @id @default(cuid())
+  id           String            @id @default(cuid())
   groupId      String
   day          Weekday
   allocationId String
   timeSlotId   String
   versionId    String?
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
-
-  allocation SubjectAllocation @relation(fields: [allocationId], references: [id], onDelete: Cascade)
-  timeSlot   TimeSlot          @relation(fields: [timeSlotId], references: [id])
-  version    TimetableVersion? @relation(fields: [versionId], references: [id])
+  createdAt    DateTime          @default(now())
+  updatedAt    DateTime          @updatedAt
+  allocation   SubjectAllocation @relation(fields: [allocationId], references: [id], onDelete: Cascade)
+  timeSlot     TimeSlot          @relation(fields: [timeSlotId], references: [id])
+  version      TimetableVersion? @relation(fields: [versionId], references: [id])
 
   @@unique([day, timeSlotId, allocationId])
   @@index([groupId])
@@ -267,6 +255,7 @@ model TimetableVersion {
   @@map("timetable_versions")
 }
 
+/// Single-row table (id = "singleton") holding college-wide configuration.
 model AppSetting {
   id              String          @id @default("singleton")
   collegeName     String          @default("My College")
