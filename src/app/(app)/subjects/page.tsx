@@ -15,7 +15,7 @@ interface Subject {
 export default function SubjectsPage() {
   const [streams, setStreams] = useState<Stream[]>([]);
   useEffect(() => {
-    void get<Stream[]>('/api/streams').then(setStreams).catch(() => {});
+    void get<Stream[]>('/api/streams').then(setStreams).catch(() => { });
   }, []);
 
   return (
@@ -70,8 +70,8 @@ export default function SubjectsPage() {
             {
               key: 'semester', label: 'Semester', type: 'select', required: true,
               options: [
-                { value: 1, label: 'Odd Semester' },
-                { value: 2, label: 'Even Semester' },
+                { value: '1', label: 'Odd Semester' },
+                { value: '2', label: 'Even Semester' },
               ],
             },
             {

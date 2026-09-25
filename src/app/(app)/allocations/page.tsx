@@ -83,23 +83,23 @@ export default function AllocationsPage() {
   useEffect(() => {
     void get<Teacher[]>('/api/teachers')
       .then(setTeachers)
-      .catch(() => {});
+      .catch(() => { });
 
     void get<Subject[]>('/api/subjects')
       .then(setSubjects)
-      .catch(() => {});
+      .catch(() => { });
 
     void get<Klass[]>('/api/classes')
       .then(setClasses)
-      .catch(() => {});
+      .catch(() => { });
 
     void get<Room[]>('/api/rooms')
       .then(setRooms)
-      .catch(() => {});
+      .catch(() => { });
 
     void get<CommonGroup[]>('/api/common-groups')
       .then(setCommonGroups)
-      .catch(() => {});
+      .catch(() => { });
   }, []);
 
   const classOptions = useMemo(
@@ -212,8 +212,8 @@ export default function AllocationsPage() {
 
           const usableRooms = subject?.roomType
             ? rooms.filter(
-                (r) => r.type === subject.roomType,
-              )
+              (r) => r.type === subject.roomType,
+            )
             : rooms;
 
           return [
@@ -227,11 +227,10 @@ export default function AllocationsPage() {
                 .filter((t) => t.status === 'ACTIVE')
                 .map((t) => ({
                   value: t.id,
-                  label: `${t.name}${
-                    t.employmentType === 'PART_TIME'
+                  label: `${t.name}${t.employmentType === 'PART_TIME'
                       ? ' (Part-Time)'
                       : ''
-                  }`,
+                    }`,
                 })),
             },
 
@@ -249,11 +248,10 @@ export default function AllocationsPage() {
                 })),
 
               help: subject
-                ? `Curriculum default: ${subject.weeklyLectures} lecture(s)/week, ${subject.durationMinutes} min${
-                    subject.roomType
-                      ? `, needs a ${subject.roomType.toLowerCase()}`
-                      : ''
-                  }.`
+                ? `Curriculum default: ${subject.weeklyLectures} lecture(s)/week, ${subject.durationMinutes} min${subject.roomType
+                  ? `, needs a ${subject.roomType.toLowerCase()}`
+                  : ''
+                }.`
                 : undefined,
             },
 
@@ -301,17 +299,26 @@ export default function AllocationsPage() {
               type: 'select',
               required: true,
 
+              // options: [
+              //   {
+              //     value: false,
+              //     label: 'No — Normal Class Lecture',
+              //   },
+              //   {
+              //     value: true,
+              //     label: 'Yes — Common Lecture',
+              //   },
+              // ],
               options: [
                 {
-                  value: false,
+                  value: 'false',
                   label: 'No — Normal Class Lecture',
                 },
                 {
-                  value: true,
+                  value: 'true',
                   label: 'Yes — Common Lecture',
                 },
               ],
-
               help:
                 'Choose Yes when multiple classes attend the same lecture together.',
             },

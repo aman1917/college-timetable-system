@@ -38,6 +38,7 @@ export const NAV: NavGroup[] = [
     items: [
       { href: '/subjects', label: 'Subject Master', icon: '📘', roles: ['ADMIN'] },
       { href: '/syllabus', label: 'Syllabus', icon: '📖', roles: ['ADMIN'] },
+      { href: '/common-groups', label: 'Common Groups', icon: '👥', roles: ['ADMIN'] },
       { href: '/allocations', label: 'Subject Allocation', icon: '🔗', roles: ['ADMIN'] },
     ],
   },
